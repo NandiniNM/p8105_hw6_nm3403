@@ -1,0 +1,24 @@
+---
+title: "HW 6"
+author: "Nandini M"
+date: "2023-12-02"
+output: github_document
+  #html_document:
+    #toc: true
+    #toc_float: true
+    #code_folding: hide
+---
+
+Load in libraries
+```{r, echo=FALSE, message=FALSE}
+library(tidyverse)
+library(p8105.datasets)
+library(modelr)
+library(mgcv)
+library(readxl)
+```
+
+```{r}
+set.seed(123)
+```
+
