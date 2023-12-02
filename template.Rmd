@@ -9,16 +9,99 @@ output: github_document
     #code_folding: hide
 ---
 
-Load in libraries
+Load in libraries and set up display settings
 ```{r, echo=FALSE, message=FALSE}
 library(tidyverse)
 library(p8105.datasets)
 library(modelr)
 library(mgcv)
 library(readxl)
+
+knitr::opts_chunk$set(
+	echo = TRUE,
+	warning = FALSE,
+  fig.width = 6,
+  fig.asp = .6,
+  out.width = "90%"
+)
+
+theme_set(theme_minimal() + theme(legend.position = "bottom"))
+
+options(
+  ggplot2.continuous.colour = "viridis",
+  ggplot2.continuous.fill = "viridis"
+)
+
+scale_colour_discrete = scale_colour_viridis_d
+scale_fill_discrete = scale_fill_viridis_d
 ```
 
 ```{r}
 set.seed(123)
+```
+
+## Problem 2 
+
+Load in Data:
+
+```{r}
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2022-01-01",
+    date_max = "2022-12-31") |>
+  mutate(
+    name = recode(id, USW00094728 = "CentralPark_NY"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) |>
+  select(name, id, everything())
+```
+
+We’ll focus on a simple linear regression with tmax as the response with tmin and prcp as the predictors, and are interested in the distribution of two quantities estimated from these data: r^2, log(β^1∗β^2)
+Use 5000 bootstrap samples and, for each bootstrap sample, produce estimates of these two quantities. 
+
+```{r}
+boot_strap_weather = weather_df |> 
+  modelr::bootstrap(n = 5000, id = "strap_number") |> 
+  mutate(
+    models = map(.x = strap, \(df) lm(tmax ~ tmin + prcp, data = df)),
+    results = map(models, broom::tidy),
+    corr = map(models, broom::glance)) |> 
+  select(-strap, -models) |> 
+  unnest(results) |> 
+  filter(term %in% c("tmin","prcp")) |> 
+  group_by(strap_number) |> 
+  mutate(log_b1x2 = log(sum(estimate))) |> 
+  select(log_b1x2, corr) |> 
+  unnest(corr) |> 
+  janitor::clean_names() |> 
+  select(strap_number, log_b1x2, r_squared)
+
+boot_strap_weather
+```
+
+Plot the distribution of your estimates, and describe these in words. 
+
+```{r}
+corr_dist = boot_strap_weather |> 
+  ggplot(aes(x = r_squared)) + geom_density()
+
+print(corr_dist + ggtitle("Density Plot of r^2 Sample Estimates"))
+
+log_dist = boot_strap_weather |> 
+  ggplot(aes(x = log_b1x2)) + geom_density()
+
+print(log_dist + ggtitle("Density Plot of log(β^1xβ^2 Sample Estimates"))
+```
+
+Across the 5000 bootstrap samples, the value of the sample r-squared estimate approximately ranges between 0.915 to 0.93. There is a high proportion of samples with a correlation coefficient close to 1.
+
+Across the 5000 bootstrap samples, the values of the sample log(β^1∗β^2) estimate approximately ranges between 0.012 to 0.025.
+
+Using the 5000 bootstrap estimates, identify the 2.5% and 97.5% quantiles to provide a 95% confidence interval for r^2 and log(β^1∗β^2).
+
+```{r}
+
 ```
 

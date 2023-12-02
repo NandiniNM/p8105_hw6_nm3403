@@ -3,8 +3,110 @@ HW 6
 Nandini M
 2023-12-02
 
-Load in libraries
+Load in libraries and set up display settings
 
 ``` r
 set.seed(123)
 ```
+
+## Problem 2
+
+Load in Data:
+
+``` r
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2022-01-01",
+    date_max = "2022-12-31") |>
+  mutate(
+    name = recode(id, USW00094728 = "CentralPark_NY"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) |>
+  select(name, id, everything())
+```
+
+    ## using cached file: C:\Users\Nandini\AppData\Local/R/cache/R/rnoaa/noaa_ghcnd/USW00094728.dly
+
+    ## date created (size, mb): 2023-10-03 10:22:11.818914 (8.542)
+
+    ## file min/max dates: 1869-01-01 / 2023-09-30
+
+We’ll focus on a simple linear regression with tmax as the response with
+tmin and prcp as the predictors, and are interested in the distribution
+of two quantities estimated from these data: r^2, log(β<sup>1∗β</sup>2)
+Use 5000 bootstrap samples and, for each bootstrap sample, produce
+estimates of these two quantities.
+
+``` r
+boot_strap_weather = weather_df |> 
+  modelr::bootstrap(n = 5000, id = "strap_number") |> 
+  mutate(
+    models = map(.x = strap, \(df) lm(tmax ~ tmin + prcp, data = df)),
+    results = map(models, broom::tidy),
+    corr = map(models, broom::glance)) |> 
+  select(-strap, -models) |> 
+  unnest(results) |> 
+  filter(term %in% c("tmin","prcp")) |> 
+  group_by(strap_number) |> 
+  mutate(log_b1x2 = log(sum(estimate))) |> 
+  select(log_b1x2, corr) |> 
+  unnest(corr) |> 
+  janitor::clean_names() |> 
+  select(strap_number, log_b1x2, r_squared)
+```
+
+    ## Adding missing grouping variables: `strap_number`
+
+``` r
+boot_strap_weather
+```
+
+    ## # A tibble: 10,000 × 3
+    ## # Groups:   strap_number [5,000]
+    ##    strap_number log_b1x2 r_squared
+    ##    <chr>           <dbl>     <dbl>
+    ##  1 0001          0.0127      0.916
+    ##  2 0001          0.0127      0.916
+    ##  3 0002          0.0125      0.914
+    ##  4 0002          0.0125      0.914
+    ##  5 0003          0.0419      0.931
+    ##  6 0003          0.0419      0.931
+    ##  7 0004         -0.0110      0.905
+    ##  8 0004         -0.0110      0.905
+    ##  9 0005          0.00860     0.927
+    ## 10 0005          0.00860     0.927
+    ## # ℹ 9,990 more rows
+
+Plot the distribution of your estimates, and describe these in words.
+
+``` r
+corr_dist = boot_strap_weather |> 
+  ggplot(aes(x = r_squared)) + geom_density()
+
+print(corr_dist + ggtitle("Density Plot of r^2 Sample Estimates"))
+```
+
+<img src="template_files/figure-gfm/unnamed-chunk-5-1.png" width="90%" />
+
+``` r
+log_dist = boot_strap_weather |> 
+  ggplot(aes(x = log_b1x2)) + geom_density()
+
+print(log_dist + ggtitle("Density Plot of log(β^1xβ^2 Sample Estimates"))
+```
+
+<img src="template_files/figure-gfm/unnamed-chunk-5-2.png" width="90%" />
+
+Across the 5000 bootstrap samples, the value of the sample r-squared
+estimate approximately ranges between 0.915 to 0.93. There is a high
+proportion of samples with a correlation coefficient close to 1.
+
+Across the 5000 bootstrap samples, the values of the sample
+log(β<sup>1∗β</sup>2) estimate approximately ranges between 0.012 to
+0.025.
+
+Using the 5000 bootstrap estimates, identify the 2.5% and 97.5%
+quantiles to provide a 95% confidence interval for r^2 and
+log(β<sup>1∗β</sup>2).
