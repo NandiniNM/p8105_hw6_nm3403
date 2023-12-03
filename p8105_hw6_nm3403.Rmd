@@ -16,6 +16,7 @@ library(p8105.datasets)
 library(modelr)
 library(mgcv)
 library(readxl)
+library(knitr)
 
 knitr::opts_chunk$set(
 	echo = TRUE,
@@ -58,7 +59,7 @@ weather_df =
   select(name, id, everything())
 ```
 
-We’ll focus on a simple linear regression with tmax as the response with tmin and prcp as the predictors, and are interested in the distribution of two quantities estimated from these data: r^2, log(β^1∗β^2)
+We’ll focus on a simple linear regression with tmax as the response with tmin and prcp as the predictors, and are interested in the distribution of two quantities estimated from these data: r^2, log(β^1 ∗ β^2)
 Use 5000 bootstrap samples and, for each bootstrap sample, produce estimates of these two quantities. 
 
 ```{r}
@@ -97,11 +98,36 @@ print(log_dist + ggtitle("Density Plot of log(β^1xβ^2 Sample Estimates"))
 
 Across the 5000 bootstrap samples, the value of the sample r-squared estimate approximately ranges between 0.915 to 0.93. There is a high proportion of samples with a correlation coefficient close to 1.
 
-Across the 5000 bootstrap samples, the values of the sample log(β^1∗β^2) estimate approximately ranges between 0.012 to 0.025.
+Across the 5000 bootstrap samples, the values of the sample log(β^1 ∗ β^2) estimate approximately ranges between 0.012 to 0.025.
 
-Using the 5000 bootstrap estimates, identify the 2.5% and 97.5% quantiles to provide a 95% confidence interval for r^2 and log(β^1∗β^2).
+Using the 5000 bootstrap estimates, identify the 2.5% and 97.5% quantiles to provide a 95% confidence interval for r^2 and log(β^1 ∗ β^2).
 
 ```{r}
+ci_intervals_weather = boot_strap_weather |>
+  ungroup() |> 
+  summarize(
+    corr_ci_lower = quantile(r_squared, 0.025),
+    corr_ci_upper = quantile(r_squared, 0.975),
+    logb_ci_lower = quantile(log_b1x2, 0.025),
+    logb_ci_upper = quantile(log_b1x2, 0.075)
+  ) 
+```
 
+The 95% Confidence Interval for the r^2 estimates is (`r ci_intervals_weather$corr_ci_lower`, `r ci_intervals_weather$corr_ci_upper`).
+
+The 95% Confidence Interval for the log(β^1 ∗ β^2) estimates is (`r ci_intervals_weather$logb_ci_lower`, `r ci_intervals_weather$logb_ci_upper`).
+
+## Problem 3
+
+Load and clean the data for regression analysis (i.e. convert numeric to factor where appropriate, check for missing data, etc.).
+
+Load in Data and clean:
+
+```{r}
+birthweight = 
+  read_csv("Data/birthweight.csv") |> 
+  janitor::clean_names() |> 
+  mutate_at(c("babysex","frace","malform","mrace"), as.factor) |> 
+  drop_na()
 ```
 
